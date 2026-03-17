@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
@@ -25,12 +26,28 @@ def build_application() -> Application:
     return app
 
 
+async def _run_bot() -> None:
+    """Executa o bot usando a API async direta, sem signal handlers (seguro em threads)."""
+    application = build_application()
+    logger.info("Starting Telegram bot (polling)...")
+
+    async with application:
+        await application.start()
+        await application.updater.start_polling(drop_pending_updates=True)
+        await asyncio.Event().wait()  # mantém rodando indefinidamente
+
+
 def start_bot() -> None:
     """Inicia o bot em modo polling (bloqueante — rodar em thread separada)."""
     if not settings.telegram_token:
         logger.warning("TELEGRAM_TOKEN not set — bot will not start")
         return
 
-    application = build_application()
-    logger.info("Starting Telegram bot (polling)...")
-    application.run_polling(drop_pending_updates=True)
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(_run_bot())
+    finally:
+        loop.close()
