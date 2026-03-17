@@ -3,6 +3,7 @@ import logging
 from fastapi import FastAPI
 from sqlalchemy import text
 
+from app.controllers import inventory_router, telegram_router
 from app.core.config import settings
 from app.database.session import engine
 
@@ -20,6 +21,10 @@ def on_startup() -> None:
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
     logger.info("Database connection established")
+
+
+app.include_router(inventory_router)
+app.include_router(telegram_router)
 
 
 @app.get("/health")
