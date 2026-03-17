@@ -1,7 +1,9 @@
+import asyncio
 import logging
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.consumption_model import Consumption
 from app.repositories.consumption_repository import ConsumptionRepository
 from app.repositories.product_repository import ProductRepository
@@ -45,4 +47,16 @@ class ConsumptionService:
             data.quantity,
             data.unit,
         )
+
+        # Dispara alerta automático se estoque ficou abaixo do mínimo
+        if product.quantity <= product.minimum_quantity and settings.telegram_chat_id:
+            from app.telegram.alert_sender import send_alert
+
+            alert_message = (
+                f"⚠️ {product.name} está acabando. "
+                f"Restam apenas {product.quantity}{product.unit} "
+                f"(mínimo: {product.minimum_quantity}{product.unit})."
+            )
+            asyncio.run(send_alert(settings.telegram_chat_id, alert_message))
+
         return ConsumptionResponse.model_validate(saved)

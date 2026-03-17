@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.schemas.product_schema import ProductCreate, ProductResponse
+from app.services.alert_service import AlertService
 from app.services.inventory_service import InventoryService
 
 logger = logging.getLogger(__name__)
@@ -31,3 +32,11 @@ def get_product(name: str, db: Session = Depends(get_db)) -> ProductResponse:
         return InventoryService(db).get_product_by_name(name)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+alerts_router = APIRouter(prefix="/alerts", tags=["Alerts"])
+
+
+@alerts_router.get("/", response_model=list[str])
+def list_low_stock_alerts(db: Session = Depends(get_db)) -> list[str]:
+    return AlertService(db).get_all_low_stock_alerts()
