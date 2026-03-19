@@ -1,10 +1,10 @@
 import asyncio
 import logging
 
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, CommandHandler
 
 from app.core.config import settings
-from app.telegram.handlers import cmd_add, cmd_estoque, handle_consumption
+from app.telegram.handlers import cmd_add, cmd_estoque, cmd_use
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +15,8 @@ def build_application() -> Application:
 
     # Comandos
     app.add_handler(CommandHandler("add", cmd_add))
+    app.add_handler(CommandHandler("use", cmd_use))
     app.add_handler(CommandHandler("estoque", cmd_estoque))
-
-    # Mensagens de texto (consumo em linguagem natural)
-    app.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_consumption)
-    )
 
     logger.info("Telegram bot handlers registered")
     return app
