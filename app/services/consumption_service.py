@@ -33,7 +33,8 @@ class ConsumptionService:
             )
 
         product.quantity = round(product.quantity - quantity_in_product_unit, 4)
-        self._product_repo.update(product)
+        product_name = product.name
+        product_unit = product.unit
 
         consumption = Consumption(
             product_id=product.id,
@@ -43,19 +44,36 @@ class ConsumptionService:
         saved = self._consumption_repo.create(consumption)
         logger.info(
             "Consumption registered: %s consumed %.2f%s",
-            product.name,
+            product_name,
             data.quantity,
             data.unit,
         )
+
+        # Remove o produto do estoque quando zerar
+        if product.quantity == 0:
+            self._product_repo.delete(product)
+            logger.info("Product removed from stock (quantity reached zero): %s", product_name)
+
+            if settings.telegram_chat_id:
+                from app.telegram.alert_sender import send_alert
+                asyncio.run(send_alert(
+                    settings.telegram_chat_id,
+                    f"🗑️ {product_name} foi removido do estoque (quantidade zerada).",
+                ))
+
+            return ConsumptionResponse.model_validate(saved)
+
+        # Salva a quantidade atualizada
+        self._product_repo.update(product)
 
         # Dispara alerta automático se estoque ficou abaixo do mínimo
         if product.quantity <= product.minimum_quantity and settings.telegram_chat_id:
             from app.telegram.alert_sender import send_alert
 
             alert_message = (
-                f"⚠️ {product.name} está acabando. "
-                f"Restam apenas {product.quantity}{product.unit} "
-                f"(mínimo: {product.minimum_quantity}{product.unit})."
+                f"⚠️ {product_name} está acabando. "
+                f"Restam apenas {product.quantity}{product_unit} "
+                f"(mínimo: {product.minimum_quantity}{product_unit})."
             )
             asyncio.run(send_alert(settings.telegram_chat_id, alert_message))
 
