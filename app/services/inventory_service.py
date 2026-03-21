@@ -13,10 +13,15 @@ class InventoryService:
     def __init__(self, db: Session) -> None:
         self._repo = ProductRepository(db)
 
-    def add_product(self, data: ProductCreate) -> ProductResponse:
+    def add_product(self, data: ProductCreate) -> tuple[ProductResponse, bool]:
+        """Retorna (produto, criado) onde criado=True se novo, False se atualizado."""
         existing = self._repo.get_by_name(data.name)
         if existing:
-            raise ValueError(f"Produto '{data.name}' já existe no estoque.")
+            existing.quantity = round(existing.quantity + data.quantity, 4)
+            existing.minimum_quantity = data.minimum_quantity
+            saved = self._repo.update(existing)
+            logger.info("Product quantity updated: %s (+%.2f%s)", saved.name, data.quantity, data.unit)
+            return self._to_response(saved), False
 
         product = Product(
             name=data.name,
@@ -26,7 +31,7 @@ class InventoryService:
         )
         saved = self._repo.create(product)
         logger.info("Product added to inventory: %s", saved.name)
-        return self._to_response(saved)
+        return self._to_response(saved), True
 
     def get_all_products(self) -> list[ProductResponse]:
         products = self._repo.get_all()

@@ -77,7 +77,14 @@ async def cmd_use(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         alert = AlertService(db).check_low_stock(product_name)
 
-        reply = f"✅ Registrado: {quantity}{unit} de {product_name}."
+        reply = f"✅ Usado: {quantity}{unit} de {product_name}."
+
+        try:
+            remaining = InventoryService(db).get_product_by_name(product_name)
+            reply += f"\n📦 Restam: {remaining.quantity}{remaining.unit}"
+        except ValueError:
+            reply += "\n📦 Produto esgotado e removido do estoque."
+
         if alert:
             reply += f"\n\n{alert}"
 
@@ -138,7 +145,7 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     db = SessionLocal()
     try:
-        product = InventoryService(db).add_product(
+        product, created = InventoryService(db).add_product(
             ProductCreate(
                 name=product_name,
                 quantity=quantity,
@@ -146,8 +153,9 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 minimum_quantity=minimum_quantity,
             )
         )
+        label = "✅ Produto adicionado!" if created else "✅ Estoque atualizado!"
         await update.message.reply_text(
-            f"✅ Produto adicionado!\n"
+            f"{label}\n"
             f"📦 {product.name}: {product.quantity}{product.unit} "
             f"(mínimo: {product.minimum_quantity}{product.unit})"
         )

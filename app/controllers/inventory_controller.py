@@ -15,10 +15,8 @@ router = APIRouter(prefix="/products", tags=["Inventory"])
 
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 def create_product(data: ProductCreate, db: Session = Depends(get_db)) -> ProductResponse:
-    try:
-        return InventoryService(db).add_product(data)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    product, _ = InventoryService(db).add_product(data)
+    return product
 
 
 @router.get("/", response_model=list[ProductResponse])
