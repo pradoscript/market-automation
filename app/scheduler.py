@@ -27,13 +27,13 @@ def _daily_stock_report() -> None:
     if alerts:
         items = "\n".join(alerts)
         message = (
-            "📋 *Relatório diário de estoque* — 23:55\n\n"
+            "📋 *Relatório diário de estoque* — 10:00\n\n"
             "Os seguintes itens precisam de atenção:\n\n"
             f"{items}"
         )
     else:
         message = (
-            "✅ *Relatório diário de estoque* — 23:55\n\n"
+            "✅ *Relatório diário de estoque* — 10:00\n\n"
             "Tudo certo por aqui! Nenhum item abaixo do mínimo."
         )
 
@@ -45,9 +45,9 @@ def start_scheduler() -> BackgroundScheduler:
     scheduler = BackgroundScheduler(timezone="America/Sao_Paulo")
     scheduler.add_job(
         _daily_stock_report,
-        trigger=CronTrigger(hour=0, minute=29, timezone="America/Sao_Paulo"),
+        trigger=CronTrigger(hour=10, minute=0, timezone="America/Sao_Paulo"),
         id="daily_stock_report",
-        name="Daily stock report at 00:29",
+        name="Daily stock report at 10:00",
         replace_existing=True,
     )
     scheduler.start()
