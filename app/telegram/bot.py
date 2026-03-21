@@ -4,7 +4,7 @@ import logging
 from telegram.ext import Application, CommandHandler
 
 from app.core.config import settings
-from app.telegram.handlers import cmd_add, cmd_estoque, cmd_use
+from app.telegram.handlers import cmd_add, cmd_estoque, cmd_start, cmd_stop, cmd_use
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,8 @@ def build_application() -> Application:
     app = Application.builder().token(settings.telegram_token).build()
 
     # Comandos
+    app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("stop", cmd_stop))
     app.add_handler(CommandHandler("add", cmd_add))
     app.add_handler(CommandHandler("use", cmd_use))
     app.add_handler(CommandHandler("estoque", cmd_estoque))

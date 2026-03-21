@@ -5,6 +5,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from app.database.session import SessionLocal
+from app.repositories.subscriber_repository import SubscriberRepository
 from app.schemas.consumption_schema import ConsumptionCreate
 from app.schemas.product_schema import ProductCreate
 from app.services.alert_service import AlertService
@@ -183,5 +184,31 @@ async def cmd_estoque(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             )
 
         await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    finally:
+        db.close()
+
+
+async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/start — cadastra o chat para receber notificações."""
+    chat_id = update.effective_chat.id
+    db = SessionLocal()
+    try:
+        SubscriberRepository(db).add(chat_id)
+        await update.message.reply_text(
+            "✅ Chat cadastrado! Você receberá notificações de estoque neste chat."
+        )
+    finally:
+        db.close()
+
+
+async def cmd_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/stop — remove o chat das notificações."""
+    chat_id = update.effective_chat.id
+    db = SessionLocal()
+    try:
+        SubscriberRepository(db).remove(chat_id)
+        await update.message.reply_text(
+            "🔕 Chat removido. Você não receberá mais notificações neste chat."
+        )
     finally:
         db.close()

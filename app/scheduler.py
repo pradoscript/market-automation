@@ -4,40 +4,41 @@ import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from app.core.config import settings
 from app.database.session import SessionLocal
+from app.repositories.subscriber_repository import SubscriberRepository
 from app.services.alert_service import AlertService
-from app.telegram.alert_sender import send_alert
+from app.telegram.alert_sender import send_to_all
 
 logger = logging.getLogger(__name__)
 
 
 def _daily_stock_report() -> None:
-    if not settings.telegram_chat_id:
-        logger.warning("TELEGRAM_CHAT_ID not set — daily report skipped")
-        return
-
     db = SessionLocal()
     try:
         alerts = AlertService(db).get_all_low_stock_alerts()
+        chat_ids = SubscriberRepository(db).get_all()
     finally:
         db.close()
+
+    if not chat_ids:
+        logger.warning("No subscribers — daily report skipped")
+        return
 
     if alerts:
         items = "\n".join(alerts)
         message = (
-            "📋 *Relatório diário de estoque* — 22:15\n\n"
+            "📋 *Relatório diário de estoque* — 23:55\n\n"
             "Os seguintes itens precisam de atenção:\n\n"
             f"{items}"
         )
     else:
         message = (
-            "✅ *Relatório diário de estoque* — 22:15\n\n"
+            "✅ *Relatório diário de estoque* — 23:55\n\n"
             "Tudo certo por aqui! Nenhum item abaixo do mínimo."
         )
 
-    asyncio.run(send_alert(settings.telegram_chat_id, message))
-    logger.info("Daily stock report sent")
+    asyncio.run(send_to_all(chat_ids, message))
+    logger.info("Daily stock report sent to %d subscribers", len(chat_ids))
 
 
 def start_scheduler() -> BackgroundScheduler:

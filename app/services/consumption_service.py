@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.models.consumption_model import Consumption
 from app.repositories.consumption_repository import ConsumptionRepository
 from app.repositories.product_repository import ProductRepository
+from app.repositories.subscriber_repository import SubscriberRepository
 from app.schemas.consumption_schema import ConsumptionCreate, ConsumptionResponse
 from app.utils.unit_converter import normalize_unit, to_base_unit
 
@@ -17,6 +18,7 @@ class ConsumptionService:
     def __init__(self, db: Session) -> None:
         self._product_repo = ProductRepository(db)
         self._consumption_repo = ConsumptionRepository(db)
+        self._subscriber_repo = SubscriberRepository(db)
 
     def register(self, data: ConsumptionCreate) -> ConsumptionResponse:
         product = self._product_repo.get_by_name(data.product_name)
@@ -54,10 +56,11 @@ class ConsumptionService:
             self._product_repo.delete(product)
             logger.info("Product removed from stock (quantity reached zero): %s", product_name)
 
-            if settings.telegram_chat_id:
-                from app.telegram.alert_sender import send_alert
-                asyncio.run(send_alert(
-                    settings.telegram_chat_id,
+            chat_ids = self._subscriber_repo.get_all()
+            if chat_ids:
+                from app.telegram.alert_sender import send_to_all
+                asyncio.run(send_to_all(
+                    chat_ids,
                     f"🗑️ {product_name} foi removido do estoque (quantidade zerada).",
                 ))
 
@@ -67,14 +70,15 @@ class ConsumptionService:
         self._product_repo.update(product)
 
         # Dispara alerta automático se estoque ficou abaixo do mínimo
-        if product.quantity <= product.minimum_quantity and settings.telegram_chat_id:
-            from app.telegram.alert_sender import send_alert
-
-            alert_message = (
-                f"⚠️ {product_name} está acabando. "
-                f"Restam apenas {product.quantity}{product_unit} "
-                f"(mínimo: {product.minimum_quantity}{product_unit})."
-            )
-            asyncio.run(send_alert(settings.telegram_chat_id, alert_message))
+        if product.quantity <= product.minimum_quantity:
+            chat_ids = self._subscriber_repo.get_all()
+            if chat_ids:
+                from app.telegram.alert_sender import send_to_all
+                alert_message = (
+                    f"⚠️ {product_name} está acabando. "
+                    f"Restam apenas {product.quantity}{product_unit} "
+                    f"(mínimo: {product.minimum_quantity}{product_unit})."
+                )
+                asyncio.run(send_to_all(chat_ids, alert_message))
 
         return ConsumptionResponse.model_validate(saved)
