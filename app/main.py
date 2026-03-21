@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app.controllers import alerts_router, inventory_router, telegram_router
 from app.core.config import settings
 from app.database.session import engine
+from app.scheduler import start_scheduler
 from app.telegram.bot import start_bot
 
 logging.basicConfig(
@@ -27,6 +28,8 @@ def on_startup() -> None:
     bot_thread = threading.Thread(target=start_bot, daemon=True, name="telegram-bot")
     bot_thread.start()
     logger.info("Telegram bot thread started")
+
+    start_scheduler()
 
 
 app.include_router(inventory_router)
