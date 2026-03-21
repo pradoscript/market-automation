@@ -19,6 +19,14 @@ logger = logging.getLogger(__name__)
 _QTY_UNIT_RE = re.compile(r"^(\d+(?:[.,]\d+)?)\s*([a-zA-Z]+)$")
 
 
+def _is_authorized(chat_id: int) -> bool:
+    db = SessionLocal()
+    try:
+        return chat_id in SubscriberRepository(db).get_all()
+    finally:
+        db.close()
+
+
 def _parse_qty_unit(token: str) -> tuple[float, str]:
     """Extrai quantidade e unidade de um token como '2kg' ou '500g'.
 
@@ -45,6 +53,10 @@ async def cmd_use(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         /use frango frito 1kg
         /use leite integral 200ml
     """
+    if not _is_authorized(update.effective_chat.id):
+        await update.message.reply_text("❌ Acesso negado.")
+        return
+
     args = context.args
     if not args or len(args) < 2:
         await update.message.reply_text(
@@ -110,6 +122,10 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         /add leite integral 2l 0.5l
         /add ovos 12un 2un
     """
+    if not _is_authorized(update.effective_chat.id):
+        await update.message.reply_text("❌ Acesso negado.")
+        return
+
     args = context.args
     if not args or len(args) < 3:
         await update.message.reply_text(
@@ -168,6 +184,10 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_estoque(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/estoque — lista todos os produtos com status de estoque."""
+    if not _is_authorized(update.effective_chat.id):
+        await update.message.reply_text("❌ Acesso negado.")
+        return
+
     db = SessionLocal()
     try:
         products = InventoryService(db).get_all_products()
@@ -189,11 +209,16 @@ async def cmd_estoque(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/start — cadastra o chat para receber notificações."""
+    """/start — cadastra o chat (só permitido se não houver nenhum cadastrado ainda)."""
     chat_id = update.effective_chat.id
     db = SessionLocal()
     try:
-        SubscriberRepository(db).add(chat_id)
+        repo = SubscriberRepository(db)
+        existing = repo.get_all()
+        if existing and chat_id not in existing:
+            await update.message.reply_text("❌ Acesso negado.")
+            return
+        repo.add(chat_id)
         await update.message.reply_text(
             "✅ Chat cadastrado! Você receberá notificações de estoque neste chat."
         )
