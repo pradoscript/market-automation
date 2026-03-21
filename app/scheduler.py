@@ -45,9 +45,9 @@ def start_scheduler() -> BackgroundScheduler:
     scheduler = BackgroundScheduler(timezone="America/Sao_Paulo")
     scheduler.add_job(
         _daily_stock_report,
-        trigger=CronTrigger(hour=23, minute=55, timezone="America/Sao_Paulo"),
+        trigger=CronTrigger(hour=0, minute=29, timezone="America/Sao_Paulo"),
         id="daily_stock_report",
-        name="Daily stock report at 23:55",
+        name="Daily stock report at 00:29",
         replace_existing=True,
     )
     scheduler.start()
