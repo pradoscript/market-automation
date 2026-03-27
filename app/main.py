@@ -4,7 +4,7 @@ import threading
 from fastapi import FastAPI
 from sqlalchemy import text
 
-from app.controllers import alerts_router, inventory_router, telegram_router
+from app.controllers import alexa_router, alerts_router, inventory_router, telegram_router
 from app.core.config import settings
 from app.database.session import engine
 from app.scheduler import start_scheduler
@@ -35,6 +35,7 @@ def on_startup() -> None:
 app.include_router(inventory_router)
 app.include_router(telegram_router)
 app.include_router(alerts_router)
+app.include_router(alexa_router)
 
 
 @app.get("/health")
