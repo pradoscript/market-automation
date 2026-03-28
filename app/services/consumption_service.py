@@ -59,7 +59,7 @@ class ConsumptionService:
             chat_ids = self._subscriber_repo.get_all()
             if chat_ids:
                 from app.telegram.alert_sender import send_to_all
-                asyncio.run(send_to_all(
+                self._fire_alert(send_to_all(
                     chat_ids,
                     f"🗑️ {product_name} foi removido do estoque (quantidade zerada).",
                 ))
@@ -79,6 +79,15 @@ class ConsumptionService:
                     f"Restam apenas {product.quantity}{product_unit} "
                     f"(mínimo: {product.minimum_quantity}{product_unit})."
                 )
-                asyncio.run(send_to_all(chat_ids, alert_message))
+                self._fire_alert(send_to_all(chat_ids, alert_message))
 
         return ConsumptionResponse.model_validate(saved)
+
+    @staticmethod
+    def _fire_alert(coro) -> None:
+        """Envia alerta async de forma segura, dentro ou fora de event loop."""
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(coro)
+        except RuntimeError:
+            asyncio.run(coro)
