@@ -67,6 +67,30 @@ def alexa_get_product(name: str, db: Session = Depends(get_db), _: None = Depend
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
+@router.get("/stock")
+def alexa_stock(db: Session = Depends(get_db), _: None = Depends(verify_api_key)) -> dict:
+    products = InventoryService(db).get_all_products()
+    items = []
+    low_stock_items = []
+    for p in products:
+        item = {
+            "name": p.name,
+            "quantity": p.quantity,
+            "unit": p.unit,
+            "minimum_quantity": p.minimum_quantity,
+            "is_low_stock": p.is_low_stock,
+        }
+        items.append(item)
+        if p.is_low_stock:
+            low_stock_items.append(item)
+    return {
+        "items": items,
+        "low_stock_items": low_stock_items,
+        "total": len(items),
+        "total_low_stock": len(low_stock_items),
+    }
+
+
 @router.get("/alerts")
 def alexa_alerts(db: Session = Depends(get_db), _: None = Depends(verify_api_key)) -> list[str]:
     return AlertService(db).get_all_low_stock_alerts()
