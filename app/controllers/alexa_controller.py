@@ -3,13 +3,23 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from pydantic import BaseModel, Field
+
 from app.core.config import settings
 from app.database.session import get_db
+from app.repositories.product_repository import ProductRepository
 from app.schemas.consumption_schema import ConsumptionCreate
 from app.schemas.product_schema import ProductCreate
 from app.services.alert_service import AlertService
 from app.services.consumption_service import ConsumptionService
 from app.services.inventory_service import InventoryService
+
+
+class AlexaProductAdd(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    quantity: float = Field(..., gt=0)
+    unit: str = Field(..., min_length=1, max_length=20)
+    minimum_quantity: float | None = None
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +51,28 @@ def alexa_consume(data: ConsumptionCreate, db: Session = Depends(get_db), _: Non
 
 
 @router.post("/products")
-def alexa_add_product(data: ProductCreate, db: Session = Depends(get_db), _: None = Depends(verify_api_key)) -> dict:
-    product, created = InventoryService(db).add_product(data)
+def alexa_add_product(data: AlexaProductAdd, db: Session = Depends(get_db), _: None = Depends(verify_api_key)) -> dict:
+    min_qty = data.minimum_quantity
+    if min_qty is None:
+        existing = ProductRepository(db).get_by_name(data.name)
+        if existing:
+            min_qty = existing.minimum_quantity
+        else:
+            min_qty = round(data.quantity * 0.25, 2)
+
+    product_data = ProductCreate(
+        name=data.name,
+        quantity=data.quantity,
+        unit=data.unit,
+        minimum_quantity=min_qty,
+    )
+    product, created = InventoryService(db).add_product(product_data)
     return {
         "success": True,
         "name": product.name,
         "quantity": product.quantity,
         "unit": product.unit,
+        "minimum_quantity": product.minimum_quantity,
         "created": created,
     }
 
